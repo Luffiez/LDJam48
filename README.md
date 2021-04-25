@@ -1,4 +1,4 @@
-NTO THE DEPTHS!
+# INTO THE DEPTHS!
 
 Ludum Dare #48
 
