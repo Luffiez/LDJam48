@@ -101,6 +101,12 @@ TextureImporter:
   - first:
       213: -3499582345813892435
     second: Bedrock
+  - first:
+      213: -5978820655979025453
+    second: Ladder
+  - first:
+      213: -5175359776409518973
+    second: Coins
   externalObjects: {}
   serializedVersion: 11
   mipmaps:
@@ -892,7 +898,7 @@ TextureImporter:
         width: 16
         height: 16
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       outline: []
       physicsShape: []
@@ -900,6 +906,48 @@ TextureImporter:
       bones: []
       spriteID: da2e887e56cfe6fc0800000000000000
       internalID: -3499582345813892435
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Ladder
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 16
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3db2a906a46f60da0800000000000000
+      internalID: -5978820655979025453
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Coins
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 38cf34e14bd6d28b0800000000000000
+      internalID: -5175359776409518973
       vertices: []
       indices: 
       edges: []

@@ -7,44 +7,71 @@ namespace Assets.Scripts
         public float DigSpeed = 1f;
         public Transform digParticlePivot;
         public ParticleSystem digParticles;
-        GameTiles tiles;
+        GameTiles gameTiles;
         PlayerController playerController;
+        PlayerResources playerResources;
+        PlayerEnergy playerEnergy;
+        SoundManager soundManager;
 
         private void Awake()
         {
-            tiles = FindObjectOfType<GameTiles>();
+            gameTiles = FindObjectOfType<GameTiles>();
+            playerResources = FindObjectOfType<PlayerResources>();
+            playerEnergy = FindObjectOfType<PlayerEnergy>();
             playerController = GetComponent<PlayerController>();
+            soundManager = FindObjectOfType<SoundManager>();
         }
 
         private void Update()
         {
-            if (!playerController.IsDigging && digParticles.isPlaying)
+            if(!playerController.IsDigging && digParticles.isPlaying)
+            {
                 digParticles.Stop();
+            }
+        }
+
+        float GetTierMultiplier()
+        {
+            switch (playerResources.drillTier)
+            {
+                case 1: return 1.2f;
+                case 2: return 1.4f;
+                case 3: return 1.6f;
+                case 4: return 1.8f;
+                case 5: return 2.0f;
+                default: return 1.2f;
+            }
         }
 
         internal void TryDig(DigDirection direction)
         {
             Vector3 position = GetDigPosition(direction);
-            Vector3Int pos = new Vector3Int(Mathf.RoundToInt(position.x), Mathf.RoundToInt(position.y), 0);
 
-            WorldTile tileToDig = tiles.GetTileAt(pos);
+            WorldTile tileToDig = gameTiles.GetTileAt(position);
 
-            if (tileToDig != null && tileToDig.Ore.Data.ore != Ore.BedRock)
+            if (tileToDig != null && tileToDig.Ore.Data != null && tileToDig.Ore.Data.ore != Ore.BedRock)
             {
+                if (tileToDig.TilemapMember.GetTile(tileToDig.LocalPlace) == null)
+                    return;
+
                 if (!digParticles.isPlaying)
                     digParticles.Play();
 
                 RotateDigParticles(direction);
-                tileToDig.Ore.Data.durability -= Time.deltaTime * DigSpeed;
-
-                if (tileToDig.Ore.Data.durability <= 0)
+                tileToDig.Durability -= Time.deltaTime * DigSpeed * GetTierMultiplier();
+                playerEnergy.DecreaseEnergy(Time.deltaTime);
+                if (tileToDig.Durability <= 0)
                 {
                     Debug.Log("Mined " + tileToDig.Ore.Data.ore.ToString());
-                    tiles.RemoveTile(tileToDig);
+                    playerResources.AddOre(tileToDig.Ore.Data.ore);
+                    gameTiles.RemoveTile(tileToDig);
+                    soundManager.PlaySfx("Destroy", 0.65f);
                 }
             }
-            else if (playerController.IsDigging && digParticles.isPlaying)
+            else if(digParticles.isPlaying)
+            {
                 digParticles.Stop();
+            }
         }
 
         private void RotateDigParticles(DigDirection direction)

@@ -8,15 +8,26 @@ namespace Assets.Scripts
     {
         public static GameTiles instance;
 
+        public PlayerController playerController;
+
         [Header("Overworld")]
         public Tilemap overworldTilemap;
         public Vector3Int overworldSize = new Vector3Int(20, 20, 0);
         public TileBase skyTile;
 
         [Header("Underworld")]
+        public int chunksCount = 20;
+        public int chunkRange = 2;
         public Vector3Int chunkSize = new Vector3Int(40, 40, 0);
-        public List<WorldWhunk> worldChunks = new List<WorldWhunk>();
+        public Tilemap underworldMap;
+        public Tilemap underworldOres;
+        public Tilemap underworldLadders;
+        public Tilemap underworldBackground;
+        public TilemapCollider2D mapCollider; 
+        public TilemapCollider2D ladderCollider;
+
         public TileBase groundTile;
+        public TileBase ladderTile;
         public TileBase backgroundTile;
 
         [Header("Cave Perlin")]
@@ -40,9 +51,10 @@ namespace Assets.Scripts
         public OreData rubyData;
         public OreData diamondData;
 
-        private float chunkCount = 0;
+        public List<WorldChunk> worldChunks = new List<WorldChunk>();
+        private int currentChunk = 0;
         private float seed;
-        public Dictionary<Vector3, WorldTile> tiles;
+        SceneFade sceneFade;
 
         private void Awake()
         {
@@ -54,16 +66,19 @@ namespace Assets.Scripts
             {
                 Destroy(gameObject);
             }
-            tiles = new Dictionary<Vector3, WorldTile>();
 
             seed = Random.Range(0f, 10000f);
 
-            GenerateOverworld();
+            underworldMap.size = new Vector3Int(chunkSize.x, chunkSize.y * chunksCount, 0);
+            underworldOres.size = new Vector3Int(chunkSize.x, chunkSize.y * chunksCount, 0);
+            underworldLadders.size = new Vector3Int(chunkSize.x, chunkSize.y * chunksCount, 0);
+            underworldBackground.size = new Vector3Int(chunkSize.x, chunkSize.y * chunksCount, 0);
 
-            foreach (WorldWhunk chunk in worldChunks)
-            {
-                GenerateWorldChunk(chunk.Tilemap, chunk.OreMap, chunk.BackgroundMap);
-            }
+            GenerateOverworld();
+            GenerateWorldChunk();
+            LoadNearbyChunks();
+            sceneFade = FindObjectOfType<SceneFade>();
+            sceneFade.BeginFade(-1);
         }
 
         private void Update()
@@ -72,80 +87,165 @@ namespace Assets.Scripts
             {
                 seed = Random.Range(0f, 10000f);
 
-                foreach (WorldWhunk chunk in worldChunks)
+                GenerateWorldChunk();
+                LoadNearbyChunks();
+            }
+
+            if(Input.GetKeyDown(KeyCode.Return))
+            {
+                if(Input.GetKey(KeyCode.DownArrow) && currentChunk < chunksCount - 2)
+                    currentChunk++;
+                else if (Input.GetKey(KeyCode.UpArrow) && currentChunk > 0)
+                    currentChunk--;
+                LoadNearbyChunks();
+            }
+            CheckChunksNearPlayer();
+
+        }
+
+        void CheckChunksNearPlayer()
+        {
+            int targetChunk = currentChunk;
+            float dist;
+            float minDist;
+
+            minDist = Mathf.Abs(playerController.Depth - worldChunks[currentChunk].StartDepth + chunkSize.y / 2);
+
+            if (currentChunk > 0)
+            {
+                dist = Mathf.Abs(playerController.Depth - worldChunks[currentChunk - 1].StartDepth + chunkSize.y / 2);
+                if (dist < minDist)
+                    targetChunk = currentChunk - 1;
+            }
+
+            if(currentChunk < chunksCount - 2)
+            {
+                dist = Mathf.Abs(playerController.Depth - worldChunks[currentChunk + 1].StartDepth + chunkSize.y / 2);
+                if (dist < minDist)
+                    targetChunk = currentChunk + 1;
+            }
+
+            if(targetChunk != currentChunk)
+            {
+                currentChunk = targetChunk;
+                LoadNearbyChunks();
+            }
+        }
+        private void GenerateOverworld()
+        {
+            overworldTilemap.size = overworldSize;
+            for (int x = 0; x < overworldSize.x; x++)
+            {
+                for (int y = 1; y < overworldSize.y; y++)
                 {
-                    GenerateWorldChunk(chunk.Tilemap, chunk.OreMap, chunk.BackgroundMap);
+                    overworldTilemap.SetTile(new Vector3Int(x, y, 0), skyTile);
                 }
             }
         }
 
-        private void GenerateWorldChunk(Tilemap tileMap, Tilemap oreMap, Tilemap backgroundMap)
+        private void GenerateWorldChunk()
         {
-            tiles.Clear();
-            tileMap.ClearAllTiles();
-            oreMap.ClearAllTiles();
-            backgroundMap.ClearAllTiles();
-            tileMap.size = chunkSize;
-            oreMap.size = chunkSize;
-            backgroundMap.size = chunkSize;
-
+            worldChunks.Clear();
+       
             TileBase tile = null;
             OreData oreData = rockData;
+            currentChunk = 0;
 
-            int xPos = Mathf.RoundToInt(tileMap.transform.position.x);
-            int yPos = Mathf.RoundToInt(tileMap.transform.position.y);
-
-            for (int x = xPos; x < xPos + chunkSize.x; x++)
+            for (int chunks = 0; chunks < chunksCount; chunks++)
             {
-                for (int y = yPos - 1; y > yPos - chunkSize.y * chunkCount; y--)
+                WorldChunk chunk = new WorldChunk();
+                int yDepth = -Mathf.RoundToInt((worldChunks.Count) * chunkSize.y);
+                chunk.StartDepth = yDepth;
+
+                for (int x = 0; x <  chunkSize.x; x++)
                 {
-                    if (x == xPos || x == xPos + chunkSize.x - 1)
+                    for (int y = yDepth; y > yDepth - chunkSize.y; y--)
                     {
-                        oreData = bedRockData;
-                        tile = bedRockData.tile;
-                    }
-                    else if (y > -5)
-                        tile = groundTile;
-                    else
-                    {
-                        float xCoord = (float)x * caveScale + seed;
-                        float yCoord = (float)y * caveScale + seed;
-
-                        float caveNoise = SimplePerlin(xCoord, yCoord, caveMultiplier, caveDivider);
-
-                        if (caveNoise < caveDensity)
+                        if (x == 0 || x == chunkSize.x - 1 || y == yDepth - chunkSize.y -1 ||
+                            y == 0 && x < 10)
                         {
-                            tile = groundTile;
-
-                            xCoord = (float)x * oreScale + seed;
-                            yCoord = (float)y * oreScale + seed;
-
-                            float oreNoise = SimplePerlin(xCoord, yCoord, oreMultiplier, oreDivider);
-                            oreData = GetOreAtDensity(oreNoise, y);
-                            Debug.Log(oreData);
+                            oreData = bedRockData;
+                            tile = bedRockData.tile;
                         }
+                        else if (y > -5)
+                        {
+                            oreData = rockData;
+                            tile = groundTile;
+                        }
+                        else
+                        {
+                            float xCoord = (float)x * caveScale + seed;
+                            float yCoord = (float)y * caveScale + seed;
+
+                            float caveNoise = SimplePerlin(xCoord, yCoord, caveMultiplier, caveDivider);
+
+                            if (caveNoise < caveDensity)
+                            {
+                                tile = groundTile;
+
+                                xCoord = (float)x * oreScale + seed;
+                                yCoord = (float)y * oreScale + seed;
+
+                                float oreNoise = SimplePerlin(xCoord, yCoord, oreMultiplier, oreDivider);
+                                oreData = GetOreAtDensity(oreNoise, y);
+                            }
+                            else
+                            {
+                                oreData = null;
+                                tile = null;
+                            }
+                                
+                        }
+
+                        Vector3Int pos = new Vector3Int(x, y, 0);
+                        SetChunkTileData(chunk, tile, pos, oreData, "Underworld");
+                        tile = null;
                     }
-                    Vector3Int pos = new Vector3Int(x, y, 0);
-                    backgroundMap.SetTile(new Vector3Int(x, y, 0), backgroundTile);
-
-                    if (tile != null)
-                        SetTile(tileMap, oreMap, tile, pos, oreData, "Underworld");
-
-                    tile = null;
                 }
+                worldChunks.Add(chunk);
+            }
+        }
+
+        private void LoadNearbyChunks()
+        {
+            if (currentChunk == 0) // First chunk
+            {
+                DisplayChunkTiles(worldChunks[0]);
+                DisplayChunkTiles(worldChunks[1]);
+
+                //Previous
+                HideChunkTiles(worldChunks[2]);
+            }
+            else if (currentChunk == chunksCount - 1) // Last chunk
+            {
+                DisplayChunkTiles(worldChunks[chunksCount - 2]);
+                DisplayChunkTiles(worldChunks[chunksCount - 1]);
+
+                //Previous
+                HideChunkTiles(worldChunks[chunksCount - 3]);
+            }
+            else // Chunks inbetween first and last chunks
+            {
+                DisplayChunkTiles(worldChunks[currentChunk - 1]);
+                DisplayChunkTiles(worldChunks[currentChunk]);
+                DisplayChunkTiles(worldChunks[currentChunk + 1]);
+
+                if(currentChunk > 1)
+                    HideChunkTiles(worldChunks[currentChunk - 2]);
+
+                if(currentChunk < chunksCount - 2)
+                    HideChunkTiles(worldChunks[currentChunk + 2]);
             }
 
-            TilemapCollider2D collider = tileMap.gameObject.GetComponent<TilemapCollider2D>();
-            if (collider)
-                collider.ProcessTilemapChanges();
-            chunkCount++;
+            if (mapCollider)
+                mapCollider.ProcessTilemapChanges();
         }
 
         private OreData GetOreAtDensity(float density, int depth)
         {
             // lower density requirement the further down we go!
             // density += depth * 0.01f;
-            Debug.Log("Density: " + density + ", Depth: " + depth);
+            //Debug.Log("Density: " + density + ", Depth: " + depth);
 
             if (density >= diamondData.density && depth < diamondData.minDepth && depth > diamondData.maxDepth)
                 return diamondData;
@@ -163,7 +263,6 @@ namespace Assets.Scripts
                 return rockData;
         }
 
-
         private float SimplePerlin(float x, float y, float multiplier, float divider)
         {
             float noise = Mathf.PerlinNoise(x, y);
@@ -172,26 +271,21 @@ namespace Assets.Scripts
             return noise;
         }
 
-        private void GenerateOverworld()
-        {
-            overworldTilemap.size = overworldSize;
-            for (int x = 0; x < overworldSize.x; x++)
-            {
-                for (int y = 0; y < overworldSize.y; y++)
-                {
-                    overworldTilemap.SetTile(new Vector3Int(x, y, 0), skyTile);
-                }
-            }
-        }
 
         public WorldTile GetTileAt(Vector3 position)
         {
             position.x = Mathf.RoundToInt(position.x);
             position.y = Mathf.RoundToInt(position.y);
 
-            if (tiles.ContainsKey(position))
-                return tiles[position];
-
+            foreach (WorldChunk chunk in worldChunks)
+            {
+                if(chunk.Displayed)
+                {
+                    WorldTile worldTile = chunk.tiles.Find(tile => tile.WorldLocation == position);
+                    if (worldTile != null)
+                        return worldTile;
+                }
+            }
             return null;
         }
 
@@ -205,42 +299,113 @@ namespace Assets.Scripts
 
             if (tile.Biome == "Underworld")
             {
-                tiles.Remove(tile.WorldLocation);
                 tile.TilemapMember.SetTile(tile.LocalPlace, null);
                 tile.Ore.TilemapMember.SetTile(tile.LocalPlace, null);
                 TilemapCollider2D collider = tile.TilemapMember.gameObject.GetComponent<TilemapCollider2D>();
                 if (collider)
                     collider.ProcessTilemapChanges();
+
+                //tile.WorldChunkMember.tiles.Remove(tile);
             }
         }
 
-        void SetTile(Tilemap tileMap, Tilemap oreMap, TileBase tile, Vector3Int localPlace, OreData oreData, string biome)
+        public bool TileHasLadder(Vector3 position)
         {
+            WorldTile tile = GetTileAt(position);
+            Debug.Log("Ladder Tile: " + tile);
+            if (tile != null && tile.Ladder != null && tile.Ladder.HasLadder)
+                return true;
+            else
+                return false;
+        }
+
+        public bool PlaceLadderTile(Vector3 position)
+        {
+            WorldTile tile = GetTileAt(position);
+            if(tile == null)
+            {
+                Debug.LogWarning("No tile found at " + position + "!");
+                return false;
+            }
+
+            tile.Ladder.HasLadder = true;
+            tile.Ladder.TilemapMember.SetTile(tile.LocalPlace, ladderTile);
+
+            if (ladderCollider)
+                ladderCollider.ProcessTilemapChanges();
+            return true;
+        }
+
+        void HideChunkTiles(WorldChunk chunk)
+        {
+            if (!chunk.Displayed)
+                return;
+
+            foreach (WorldTile tile in chunk.tiles)
+            {
+                underworldMap.SetTile(tile.LocalPlace, null);
+                underworldBackground.SetTile(tile.LocalPlace, null);
+
+                if (tile.Ore == null || tile.Ore.Data == null)
+                    continue;
+
+                if (tile.Ore.Data.ore != Ore.Rock || tile.Ore.Data.ore != Ore.BedRock)
+                    underworldOres.SetTile(tile.LocalPlace, null);
+            }
+
+            chunk.Displayed = false;
+        }
+
+        void DisplayChunkTiles(WorldChunk chunk)
+        {
+            if (chunk.Displayed)
+                return;
+
+            foreach (WorldTile tile in chunk.tiles)
+            {
+                underworldBackground.SetTile(tile.LocalPlace, backgroundTile);
+                underworldMap.SetTile(tile.LocalPlace, tile.TileBase);
+
+                if (tile.Ore == null || tile.Ore.Data == null)
+                    continue;
+
+                if (tile.Ore.Data.ore != Ore.Rock || tile.Ore.Data.ore != Ore.BedRock)
+                    underworldOres.SetTile(tile.LocalPlace, tile.Ore.Data.tile);
+            }
+
+
+            chunk.Displayed = true;
+        }
+
+        void SetChunkTileData(WorldChunk chunk, TileBase tile, Vector3Int localPlace, OreData oreData, string biome)
+        {
+            float durability = 0;
+            if (oreData != null)
+                durability = oreData.durability;
+
             var worldTile = new WorldTile
             {
                 LocalPlace = localPlace,
-                WorldLocation = tileMap.CellToWorld(localPlace),
-                TileBase = tileMap.GetTile(localPlace),
-                TilemapMember = tileMap,
+                WorldLocation = underworldMap.CellToWorld(localPlace),
+                TileBase = tile,
+                TilemapMember = underworldMap,
+                WorldChunkMember = chunk,
                 Name = localPlace.x + "," + localPlace.y,
-                Ore = new OreTile(oreData, oreMap),
+                Ore = new OreTile(oreData, underworldOres),
+                Ladder = new LadderTile(false, underworldLadders),
+                Durability = durability,
                 Biome = biome
             };
 
-            tiles.Add(worldTile.WorldLocation, worldTile);
-
-            tileMap.SetTile(localPlace, tile);
-
-            if (oreData.ore != Ore.Rock)
-                oreMap.SetTile(localPlace, oreData.tile);
+            chunk.tiles.Add(worldTile);
         }
     }
 
     [System.Serializable]
-    public class WorldWhunk
+    public class WorldChunk
     {
-        public Tilemap Tilemap;
-        public Tilemap OreMap;
-        public Tilemap BackgroundMap;
+        public bool Displayed = false;
+        public int StartDepth;
+        public List<WorldTile> tiles = new List<WorldTile>();
     }
 }
