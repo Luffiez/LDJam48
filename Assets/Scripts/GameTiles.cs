@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
@@ -9,6 +10,7 @@ namespace Assets.Scripts
         public static GameTiles instance;
 
         public PlayerController playerController;
+        public Rigidbody2D playerRB;
 
         [Header("Overworld")]
         public Tilemap overworldTilemap;
@@ -79,6 +81,7 @@ namespace Assets.Scripts
             LoadNearbyChunks();
             sceneFade = FindObjectOfType<SceneFade>();
             sceneFade.BeginFade(-1);
+            playerRB.bodyType = RigidbodyType2D.Dynamic;
         }
 
         private void Update()

@@ -60,6 +60,13 @@ namespace Assets.Scripts
             }
         }
 
+        public void SellOres()
+        {
+            playerResources.SellAllOres();
+            soundManager.PlaySfx("Coin", 1f);
+            UpdateAllUI();
+        }
+
         private void OpenShop()
         {
             UpdateAllUI();

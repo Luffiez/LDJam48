@@ -10424,7 +10424,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 631725777}
-  m_BodyType: 0
+  m_BodyType: 2
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
@@ -13052,9 +13052,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1463608844}
-        m_TargetAssemblyTypeName: Assets.Scripts.PlayerResources, Assembly-CSharp
-        m_MethodName: SellAllOres
+      - m_Target: {fileID: 1248131241}
+        m_TargetAssemblyTypeName: Assets.Scripts.Shop, Assembly-CSharp
+        m_MethodName: SellOres
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -16949,6 +16949,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerController: {fileID: 631725780}
+  playerRB: {fileID: 631725781}
   overworldTilemap: {fileID: 185848808}
   overworldSize: {x: 50, y: 20, z: 0}
   skyTile: {fileID: 11400000, guid: 5a8b764905f50684699f6fa7dc30539b, type: 2}
@@ -17343,7 +17344,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 0.000061035156, y: 0}
+  m_AnchoredPosition: {x: 0.00012207031, y: 0}
   m_SizeDelta: {x: 106.16214, y: 20}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &1617912929

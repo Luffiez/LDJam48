@@ -17,7 +17,6 @@ namespace Assets.Scripts
         {
             playerController = FindObjectOfType<PlayerController>();
             RefillEnergy();
-            UpdateFillbar();
         }
 
         public void DecreaseEnergy(float value)
@@ -34,6 +33,7 @@ namespace Assets.Scripts
         public void RefillEnergy()
         {
             currentEnergy = maxEnergy;
+            UpdateFillbar();
         }
 
         void UpdateFillbar()
